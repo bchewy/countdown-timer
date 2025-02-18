@@ -9,6 +9,7 @@ import { events as defaultEvents, Event } from '@/data/events';
 export default function Home() {
   const [events, setEvents] = useState<Event[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [isPanelOpen, setIsPanelOpen] = useState(true);
   const [background, setBackground] = useState({
     type: 'gradient',
     gradient: 'from-gray-900 to-gray-800',
@@ -29,7 +30,8 @@ export default function Home() {
       title: "New Event",
       date: new Date().toISOString(),
       description: "Add your description",
-      color: "from-blue-500 to-purple-600 bg-gradient-to-br"
+      color: "from-blue-500 to-purple-600 bg-gradient-to-br",
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
     };
     setEvents([...events, newEvent]);
     setSelectedEvent(newEvent);
@@ -52,7 +54,7 @@ export default function Home() {
   };
 
   return (
-    <main className={`min-h-screen text-white ${backgroundStyles[background.type as keyof typeof backgroundStyles]}`}
+    <div className={`min-h-screen text-white ${backgroundStyles[background.type as keyof typeof backgroundStyles]}`}
       style={background.image ? { backgroundImage: `url(${background.image})` } : undefined}>
       {background.video && (
         <video
@@ -73,15 +75,35 @@ export default function Home() {
         />
       )}
 
-      <div className="flex h-screen overflow-hidden">
+      <div className="flex">
         {/* Left Side Panel */}
         <motion.div 
-          initial={{ x: -280 }}
-          animate={{ x: 0 }}
-          className="w-70 min-w-[280px] h-screen bg-gray-900/95 backdrop-blur-sm shadow-xl border-r border-gray-800 flex flex-col fixed left-0 top-0 z-50"
+          initial={{ x: 0 }}
+          animate={{ x: isPanelOpen ? 0 : -280 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          className="w-[280px] h-screen bg-gray-900/95 backdrop-blur-sm shadow-xl border-r border-gray-800 flex flex-col fixed left-0 top-0 z-50"
         >
-          <div className="p-4 border-b border-gray-800">
+          <div className="p-4 border-b border-gray-800 flex justify-between items-center">
             <h3 className="text-lg font-bold">Background Settings</h3>
+            <button 
+              onClick={() => setIsPanelOpen(!isPanelOpen)}
+              className="p-2 hover:bg-gray-800 rounded-full transition-colors"
+            >
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className="h-5 w-5" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d={isPanelOpen ? "M15 19l-7-7 7-7" : "M9 5l7 7-7 7"} 
+                />
+              </svg>
+            </button>
           </div>
           
           <div className="flex-1 overflow-y-auto custom-scrollbar p-4 pb-20">
@@ -178,70 +200,91 @@ export default function Home() {
           </div>
         </motion.div>
 
-        {/* Main Content */}
-        <div className="ml-[280px] min-h-screen flex items-center justify-center">
-          <motion.div 
-            className="w-full max-w-4xl mx-auto px-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+        {/* Toggle button when panel is closed */}
+        <motion.button
+          initial={{ opacity: 0, x: -280 }}
+          animate={{ 
+            opacity: isPanelOpen ? 0 : 1, 
+            x: isPanelOpen ? -280 : 0,
+            pointerEvents: isPanelOpen ? "none" : "auto"
+          }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          onClick={() => setIsPanelOpen(true)}
+          className="fixed left-4 top-4 z-40 p-2 bg-gray-900/95 backdrop-blur-sm shadow-xl border border-gray-800 rounded-full hover:bg-gray-800 transition-colors"
+        >
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            className="h-5 w-5" 
+            fill="none" 
+            viewBox="0 0 24 24" 
+            stroke="currentColor"
           >
-            <div className="space-y-16">
-              {selectedEvent ? (
-                <div className="flex flex-col items-center">
-                  <div className="w-full flex justify-center mb-12">
-                    <Timer targetDate={selectedEvent.date} color={selectedEvent.color} />
-                  </div>
-                  
-                  <AnimatePresence mode="wait">
-                    <motion.div 
-                      key={selectedEvent.id}
-                      className="w-full text-center space-y-6"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                    >
-                      <motion.h1 
-                        className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent"
-                        initial={{ scale: 0.9 }}
-                        animate={{ scale: 1 }}
-                      >
-                        {selectedEvent.title}
-                      </motion.h1>
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              strokeWidth={2} 
+              d="M9 5l7 7-7 7" 
+            />
+          </svg>
+        </motion.button>
 
-                      <motion.div 
-                        className="space-y-2"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                      >
-                        <p className="text-lg sm:text-xl text-white/90">
-                          {new Date(selectedEvent.date).toLocaleDateString('en-US', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                          })}
-                        </p>
-                        {selectedEvent.description && (
-                          <p className="text-base sm:text-lg text-white/70">{selectedEvent.description}</p>
-                        )}
-                      </motion.div>
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
+        {/* Main Content */}
+        <main 
+          className={`flex-1 min-h-screen flex flex-col items-center justify-center transition-all duration-300 ${
+            isPanelOpen ? 'ml-[280px]' : 'ml-0'
+          }`}
+        >
+          <div className="w-full max-w-4xl p-8">
+            {/* Timer */}
+            <div className="mb-8 flex justify-center">
+              {selectedEvent ? (
+                <Timer 
+                  targetDate={selectedEvent.date}
+                  timezone={selectedEvent.timezone}
+                  color={selectedEvent.color}
+                />
               ) : (
-                <div className="text-center space-y-4">
-                  <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-                    Create Your First Event
-                  </h1>
-                  <p className="text-lg sm:text-xl text-white/70">
-                    Add an event to start counting down!
-                  </p>
+                <div className="text-center text-gray-400">
+                  <p className="text-xl">No event selected</p>
+                  <p className="mt-2">Select an event from below or create a new one</p>
                 </div>
               )}
+            </div>
 
-              <motion.div layout>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {events.map((event) => (
+            {/* Events List */}
+            <div className="w-full">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold">Your Events</h2>
+                <button
+                  onClick={addNewEvent}
+                  className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-md transition-colors flex items-center gap-2"
+                >
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className="h-5 w-5" 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  New Event
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {events.length === 0 ? (
+                  <div className="col-span-full text-center py-8 bg-white/5 rounded-lg">
+                    <p className="text-gray-400">No events yet</p>
+                    <button
+                      onClick={addNewEvent}
+                      className="mt-2 text-blue-400 hover:text-blue-300 transition-colors"
+                    >
+                      Create your first event
+                    </button>
+                  </div>
+                ) : (
+                  events.map(event => (
                     <EventCard
                       key={event.id}
                       event={event}
@@ -250,21 +293,13 @@ export default function Home() {
                       onEdit={handleEditEvent}
                       onDelete={handleDeleteEvent}
                     />
-                  ))}
-                  <motion.button
-                    onClick={addNewEvent}
-                    className="cursor-pointer p-4 sm:p-6 rounded-xl transition-all duration-300 bg-white/5 hover:bg-white/10 backdrop-blur-lg border-2 border-dashed border-white/20 flex items-center justify-center h-full min-h-[200px]"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <span className="text-xl font-bold text-white/70">+ Add New Event</span>
-                  </motion.button>
-                </div>
-              </motion.div>
+                  ))
+                )}
+              </div>
             </div>
-          </motion.div>
-        </div>
+          </div>
+        </main>
       </div>
-    </main>
+    </div>
   );
 }

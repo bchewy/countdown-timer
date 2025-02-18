@@ -15,6 +15,7 @@ interface TimeLeft {
 
 interface TimerProps {
   targetDate: string;
+  timezone?: string;
   color?: string;
   showParticles?: boolean;
   particleCount?: number;
@@ -499,54 +500,6 @@ const StyleControls = ({ color, showParticles, particleCount, showGlow, showShoc
                 </div>
               </div>
 
-              <style jsx global>{`
-                .custom-scrollbar::-webkit-scrollbar {
-                  width: 8px;
-                  height: 8px;
-                }
-                
-                .custom-scrollbar::-webkit-scrollbar-track {
-                  background: rgba(0, 0, 0, 0.1);
-                  border-radius: 4px;
-                }
-                
-                .custom-scrollbar::-webkit-scrollbar-thumb {
-                  background: rgba(255, 255, 255, 0.2);
-                  border-radius: 4px;
-                }
-                
-                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-                  background: rgba(255, 255, 255, 0.3);
-                }
-
-                input[type="range"] {
-                  -webkit-appearance: none;
-                  width: 100%;
-                  height: 6px;
-                  background: rgba(255, 255, 255, 0.1);
-                  border-radius: 3px;
-                  outline: none;
-                }
-
-                input[type="range"]::-webkit-slider-thumb {
-                  -webkit-appearance: none;
-                  width: 16px;
-                  height: 16px;
-                  background: white;
-                  border-radius: 50%;
-                  cursor: pointer;
-                  transition: all 0.2s;
-                }
-
-                input[type="range"]::-webkit-slider-thumb:hover {
-                  transform: scale(1.1);
-                }
-
-                input[type="range"]::-webkit-slider-thumb:active {
-                  transform: scale(0.9);
-                }
-              `}</style>
-
               <div>
                 <label className="block text-sm font-medium mb-2">Animation Style</label>
                 <select
@@ -916,6 +869,7 @@ const MatrixRain = () => {
 
 export default function Timer({ 
   targetDate, 
+  timezone,
   color = "from-blue-500 to-purple-600",
   showParticles = true,
   particleCount = 20,
@@ -940,8 +894,86 @@ export default function Timer({
     hours: '00',
     minutes: '00',
     seconds: '00',
-    expired: false,
+    expired: false
   });
+
+  // Calculate time left
+  useEffect(() => {
+    if (!targetDate) {
+      console.error('No target date provided');
+      return;
+    }
+
+    const calculateTimeLeft = () => {
+      try {
+        const now = new Date();
+        const target = new Date(targetDate);
+        
+        if (!target || isNaN(target.getTime())) {
+          console.error('Invalid target date:', targetDate);
+          return {
+            days: '00',
+            hours: '00',
+            minutes: '00',
+            seconds: '00',
+            expired: true
+          };
+        }
+
+        let diff: number;
+        if (timezone) {
+          const targetInTimezone = new Date(target.toLocaleString('en-US', {
+            timeZone: timezone
+          }));
+          diff = targetInTimezone.getTime() - now.getTime();
+        } else {
+          diff = target.getTime() - now.getTime();
+        }
+
+        if (diff <= 0) {
+          return {
+            days: '00',
+            hours: '00',
+            minutes: '00',
+            seconds: '00',
+            expired: true
+          };
+        }
+
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24)).toString().padStart(2, '0');
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toString().padStart(2, '0');
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000).toString().padStart(2, '0');
+
+        return {
+          days,
+          hours,
+          minutes,
+          seconds,
+          expired: false
+        };
+      } catch (error) {
+        console.error('Error calculating time left:', error);
+        return {
+          days: '00',
+          hours: '00',
+          minutes: '00',
+          seconds: '00',
+          expired: true
+        };
+      }
+    };
+
+    setMounted(true);
+    setTimeLeft(calculateTimeLeft());
+
+    const timer = setInterval(() => {
+      setTimeLeft(calculateTimeLeft());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [targetDate, timezone]);
+  
   const [styles, setStyles] = useState<TimerStyle>({
     color,
     showParticles,
@@ -972,39 +1004,6 @@ export default function Timer({
     }
     return builtInPresets;
   });
-
-  useEffect(() => {
-    setMounted(true);
-    const calculateTimeLeft = () => {
-      const total = Date.parse(targetDate) - Date.now();
-      
-      if (total <= 0) {
-        return {
-          days: '00',
-          hours: '00',
-          minutes: '00',
-          seconds: '00',
-          expired: true,
-        };
-      }
-
-      return {
-        days: Math.floor(total / (1000 * 60 * 60 * 24)).toString().padStart(2, '0'),
-        hours: Math.floor((total / (1000 * 60 * 60)) % 24).toString().padStart(2, '0'),
-        minutes: Math.floor((total / 1000 / 60) % 60).toString().padStart(2, '0'),
-        seconds: Math.floor((total / 1000) % 60).toString().padStart(2, '0'),
-        expired: false,
-      };
-    };
-
-    setTimeLeft(calculateTimeLeft());
-
-    const timer = setInterval(() => {
-      setTimeLeft(calculateTimeLeft());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [targetDate]);
 
   // Shockwave animation
   useEffect(() => {

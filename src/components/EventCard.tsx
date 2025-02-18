@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import TimezonePicker from './TimezonePicker';
 import type { Event } from '@/data/events';
 
 interface EventCardProps {
@@ -12,9 +13,21 @@ interface EventCardProps {
   onDelete?: (id: number) => void;
 }
 
+interface Event {
+  id: number;
+  title: string;
+  date: string;
+  description?: string;
+  color?: string;
+  timezone?: string;
+}
+
 export default function EventCard({ event, isSelected, onClick, onEdit, onDelete }: EventCardProps) {
   const [isEditing, setIsEditing] = useState(false);
-  const [editedEvent, setEditedEvent] = useState(event);
+  const [editedEvent, setEditedEvent] = useState<Event>({
+    ...event,
+    timezone: event.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
+  });
   const gradientClass = event.color || 'from-blue-500 to-purple-600 bg-gradient-to-br';
 
   const handleEdit = (e: React.MouseEvent) => {
@@ -55,9 +68,41 @@ export default function EventCard({ event, isSelected, onClick, onEdit, onDelete
           />
           <input
             type="datetime-local"
-            value={new Date(editedEvent.date).toISOString().slice(0, 16)}
-            onChange={(e) => setEditedEvent({ ...editedEvent, date: new Date(e.target.value).toISOString() })}
+            value={(() => {
+              const date = new Date(editedEvent.date);
+              // Format date to YYYY-MM-DDTHH:mm without timezone conversion
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const day = String(date.getDate()).padStart(2, '0');
+              const hours = String(date.getHours()).padStart(2, '0');
+              const minutes = String(date.getMinutes()).padStart(2, '0');
+              return `${year}-${month}-${day}T${hours}:${minutes}`;
+            })()}
+            onChange={(e) => {
+              // Create date object from local time without timezone conversion
+              const [datePart, timePart] = e.target.value.split('T');
+              const [year, month, day] = datePart.split('-').map(Number);
+              const [hours, minutes] = timePart.split(':').map(Number);
+              
+              const newDate = new Date();
+              newDate.setFullYear(year);
+              newDate.setMonth(month - 1);
+              newDate.setDate(day);
+              newDate.setHours(hours);
+              newDate.setMinutes(minutes);
+              newDate.setSeconds(0);
+              newDate.setMilliseconds(0);
+              
+              setEditedEvent({ 
+                ...editedEvent, 
+                date: newDate.toISOString()
+              });
+            }}
             className="w-full bg-white/5 rounded-md px-3 py-2 text-white"
+          />
+          <TimezonePicker
+            value={editedEvent.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone}
+            onChange={(timezone) => setEditedEvent({ ...editedEvent, timezone })}
           />
           <input
             type="text"
